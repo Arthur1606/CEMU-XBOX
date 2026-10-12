@@ -73,3 +73,4 @@ Con Visual Studio 2022, usa `-G "Visual Studio 17 2022"` y añade `/p:PlatformTo
 - **Giroscopio:** el mando de Xbox no tiene, y no hay emulación por stick. Juegos como Star Fox Zero o Splatoon lo necesitan.
 - **Amiibo/NFC** y **vibración:** sin implementar.
 - **Perfiles por juego:** los `gameProfiles` se empaquetan, pero no se pueden editar desde la interfaz.
+# CEMU-XBOX
