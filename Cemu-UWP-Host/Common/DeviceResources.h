@@ -17,6 +17,9 @@ namespace DX
 		// Use it when an embedded renderer exclusively owns the swap chain.
 		explicit DeviceResources(bool externalRenderer = false);
 		void SetSwapChainPanel(Windows::UI::Xaml::Controls::SwapChainPanel^ panel);
+		// Detaches the swap chain from the XAML panel and drops the cached panel
+		// reference so the runtime's D3D objects can be released on teardown.
+		void DetachSwapChainPanel();
 		void ReleaseSizeDependentResourcesForExternalRenderer();
 		void SetLogicalSize(Windows::Foundation::Size logicalSize);
 		void SetCurrentOrientation(Windows::Graphics::Display::DisplayOrientations currentOrientation);

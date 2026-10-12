@@ -545,6 +545,28 @@ void DX::DeviceResources::SetSwapChainPanel(SwapChainPanel^ panel)
 	CreateWindowSizeDependentResources();
 }
 
+void DX::DeviceResources::DetachSwapChainPanel()
+{
+	if (m_swapChainPanel == nullptr)
+		return;
+	try
+	{
+		// ISwapChainPanelNative must be used on the panel's UI thread. Teardown
+		// normally runs there; otherwise only the cached reference is dropped.
+		if (m_swapChainPanel->Dispatcher->HasThreadAccess)
+		{
+			ComPtr<ISwapChainPanelNative> panelNative;
+			if (SUCCEEDED(reinterpret_cast<IUnknown*>(m_swapChainPanel)->QueryInterface(IID_PPV_ARGS(&panelNative))))
+				panelNative->SetSwapChain(nullptr);
+		}
+	}
+	catch (Platform::Exception^)
+	{
+		// The panel may already be leaving the visual tree during shutdown.
+	}
+	m_swapChainPanel = nullptr;
+}
+
 void DX::DeviceResources::ReleaseSizeDependentResourcesForExternalRenderer()
 {
 	// The embedded Cemu renderer owns presentation and ResizeBuffers after the
