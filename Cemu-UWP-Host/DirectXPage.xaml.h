@@ -25,6 +25,7 @@ namespace Cemu_UWP_Host
 		void SaveInternalState(Windows::Foundation::Collections::IPropertySet^ state);
 		void LoadInternalState(Windows::Foundation::Collections::IPropertySet^ state);
 		void ShutdownRuntime();
+		void SuspendRuntime();
 		void ResumeRuntime();
 
 	private:
@@ -133,11 +134,13 @@ namespace Cemu_UWP_Host
 		bool m_virtualMouseEnabled = false;
 		bool m_virtualMouseChordHeld = false;
 		bool m_optionsChordHeld = false;
+		bool m_screenSwapChordHeld = false;
 		bool m_virtualMouseLeftDown = false;
 		bool m_performanceMetricsVisible = false;
 		bool m_loadingSettings = false;
 		bool m_loadingGraphicPacks = false;
 		bool m_runtimeSuspended = false;
+		bool m_runtimeShutDown = false;
 		uint64_t m_selectedTitleId = 0;
 		bool m_restoringCommittedSelection = false;
 		// The Xbox input object belongs to the XAML apartment. Keep one snapshot

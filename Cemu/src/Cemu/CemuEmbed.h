@@ -414,6 +414,12 @@ CEMU_EMBED_API CemuEmbedResult CEMU_EMBED_CALL CemuEmbed_SetVirtualMouse(
 // the top-right corner and reports FPS, draw calls, CPU, RAM and VRAM.
 CEMU_EMBED_API CemuEmbedResult CEMU_EMBED_CALL CemuEmbed_SetPerformanceMetrics(
 	CemuEmbedInstance* instance, int32_t enabled);
+// Swaps which Wii U screen (TV or GamePad) is presented on the host surface,
+// matching Ctrl+Tab in desktop Cemu. Virtual-mouse touches map to the GamePad
+// touchscreen while it is shown. Requires a running title. gamepad_primary may
+// be null; otherwise it receives nonzero when the GamePad screen is now shown.
+CEMU_EMBED_API CemuEmbedResult CEMU_EMBED_CALL CemuEmbed_ToggleGamePadScreen(
+	CemuEmbedInstance* instance, int32_t* gamepad_primary);
 // Reads or persists every scalar, user-facing global setting exposed to an
 // embedded host. Renderer/backend selection remains host-owned on Xbox.
 CEMU_EMBED_API CemuEmbedResult CEMU_EMBED_CALL CemuEmbed_GetSettings(

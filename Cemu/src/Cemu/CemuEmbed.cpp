@@ -8,6 +8,7 @@
 #include "Cafe/CafeSystem.h"
 #include "Cafe/Account/Account.h"
 #include "Cafe/GraphicPack/GraphicPack2.h"
+#include "Cafe/HW/Latte/Core/Latte.h"
 #include "Cafe/HW/Latte/Core/LatteOverlay.h"
 #include "Cafe/TitleList/TitleList.h"
 #include "Cafe/OS/libs/nsyshid/Dimensions.h"
@@ -2445,6 +2446,22 @@ extern "C" CemuEmbedResult CEMU_EMBED_CALL CemuEmbed_SetPerformanceMetrics(
 		return CEMU_EMBED_INVALID_STATE;
 
 	LatteOverlay_setHostPerformanceMetrics(enabled != 0);
+	return CEMU_EMBED_OK;
+}
+
+extern "C" CemuEmbedResult CEMU_EMBED_CALL CemuEmbed_ToggleGamePadScreen(
+	CemuEmbedInstance* instance, int32_t* gamepad_primary) {
+	if (!instance)
+		return CEMU_EMBED_INVALID_ARGUMENT;
+	if (instance->state.load(std::memory_order_acquire) != CEMU_EMBED_STATE_READY ||
+		!CafeSystem::IsTitleRunning())
+		return CEMU_EMBED_INVALID_STATE;
+
+	// The GPU thread reads this flag once per scan-buffer flip, exactly like the
+	// desktop Ctrl+Tab toggle, so a plain store is sufficient.
+	LatteGPUState.isDRCPrimary = !LatteGPUState.isDRCPrimary;
+	if (gamepad_primary)
+		*gamepad_primary = LatteGPUState.isDRCPrimary ? 1 : 0;
 	return CEMU_EMBED_OK;
 }
 

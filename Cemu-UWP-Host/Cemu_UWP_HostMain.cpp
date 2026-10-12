@@ -652,6 +652,15 @@ bool Cemu_UWP_HostMain::SetPerformanceMetrics(bool enabled)
 		CemuEmbed_SetPerformanceMetrics(m_instance, enabled ? 1 : 0) == CEMU_EMBED_OK;
 }
 
+bool Cemu_UWP_HostMain::ToggleGamePadScreen(bool* gamePadPrimary)
+{
+	int32_t primary{};
+	const bool toggled = m_instance &&
+		CemuEmbed_ToggleGamePadScreen(m_instance, &primary) == CEMU_EMBED_OK;
+	if (gamePadPrimary) *gamePadPrimary = toggled && primary != 0;
+	return toggled;
+}
+
 bool Cemu_UWP_HostMain::GetSettings(CemuEmbedSettings& settings)
 {
 	if (!m_instance)

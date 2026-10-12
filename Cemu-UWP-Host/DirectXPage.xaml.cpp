@@ -596,9 +596,13 @@ DirectXPage::~DirectXPage()
 
 void DirectXPage::ShutdownRuntime()
 {
-	if (m_runtimeSuspended)
+	// Final teardown only. The embedded runtime has process-wide singletons and
+	// CemuEmbed_Create refuses a second instance, so this must never be used for
+	// a recoverable lifecycle transition such as suspension.
+	if (m_runtimeShutDown)
 		return;
-	m_runtimeSuspended = true;
+	m_runtimeShutDown = true;
+	m_runtimeSuspended = false;
 	SetSystemPointerForUi(true);
 	SetExternalLoadingVisible(false);
 	m_gamepad = nullptr;
@@ -630,23 +634,51 @@ void DirectXPage::ShutdownRuntime()
 	std::vector<uint64_t>().swap(m_graphicPackGameIds);
 }
 
+void DirectXPage::SuspendRuntime()
+{
+	// Keep the emulator instance, the running title and its D3D objects alive:
+	// the OS freezes the process while suspended and the session continues on
+	// resume. Destroying the instance here lost unsaved progress and could never
+	// succeed again because the runtime allows one instance per process.
+	if (m_runtimeSuspended || m_runtimeShutDown)
+		return;
+	m_runtimeSuspended = true;
+	if (m_main)
+	{
+		// Release inputs so no button or mouse press stays latched across the
+		// suspension. The live controller snapshot is republished on resume.
+		if (m_virtualMouseEnabled)
+			SetVirtualMouseEnabled(false);
+		CemuEmbedGamepadState released{};
+		released.struct_size = sizeof(released);
+		released.abi_version = CEMU_EMBED_GAMEPAD_VERSION;
+		m_main->SetGamepadState(released);
+	}
+	m_hasPublishedGamepadState = false;
+	m_optionsChordHeld = false;
+	m_screenSwapChordHeld = false;
+	m_virtualMouseChordHeld = false;
+}
+
 void DirectXPage::ResumeRuntime()
 {
-	if (!m_runtimeSuspended)
+	if (!m_runtimeSuspended || m_runtimeShutDown)
 		return;
 	m_runtimeSuspended = false;
 	try
 	{
 		auto gamepads = Gamepad::Gamepads;
-		if (gamepads && gamepads->Size != 0)
-			m_gamepad = gamepads->GetAt(0);
+		m_gamepad = gamepads && gamepads->Size != 0 ? gamepads->GetAt(0) : nullptr;
 	}
 	catch (Platform::Exception^)
 	{
 		m_gamepad = nullptr;
 	}
-	InitializeEmulator(static_cast<float>(emulatorSurface->ActualWidth),
-		static_cast<float>(emulatorSurface->ActualHeight));
+	// Only initialize when the runtime never started (for example, the app was
+	// suspended before the first layout pass).
+	if (!m_main)
+		InitializeEmulator(static_cast<float>(emulatorSurface->ActualWidth),
+			static_cast<float>(emulatorSurface->ActualHeight));
 	UpdateGamepadStatus();
 }
 
@@ -693,6 +725,16 @@ void DirectXPage::OnRendering(Platform::Object^, Platform::Object^)
 		SetTabsVisible(showOptions);
 	}
 	m_optionsChordHeld = optionsChord;
+	// View + right-stick click swaps the TV and GamePad screens (desktop
+	// Ctrl+Tab). Many titles show essential content only on the GamePad.
+	constexpr uint32_t rightStickButton = 1u << 8;
+	const bool screenSwapChord = m_gameRunning && m_main &&
+		tabsPanel->Visibility != VisibleValue &&
+		(gamepadState.buttons & viewButton) != 0 &&
+		(gamepadState.buttons & rightStickButton) != 0;
+	if (screenSwapChord && !m_screenSwapChordHeld)
+		m_main->ToggleGamePadScreen();
+	m_screenSwapChordHeld = screenSwapChord;
 	UpdateVirtualMouse(gamepadState);
 	if (++m_controllerPollFrames >= 60)
 	{

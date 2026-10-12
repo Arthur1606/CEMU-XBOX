@@ -148,7 +148,9 @@ void App::OnSuspending(Object^ sender, SuspendingEventArgs^ e)
 		if (m_directXPage != nullptr)
 		{
 			m_directXPage->SaveInternalState(ApplicationData::Current->LocalSettings->Values);
-			m_directXPage->ShutdownRuntime();
+			// Keep the running title alive; the runtime cannot be recreated
+			// within the same process.
+			m_directXPage->SuspendRuntime();
 		}
 	}
 	catch (...)
