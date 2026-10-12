@@ -131,3 +131,24 @@ jobs:
           name: CEMU-XBOX-runtime-pdb
           path: Cemu/bin/Cemu_release.pdb
           if-no-files-found: ignore
+
+      # Keeps a pre-release named "latest-build" in sync with the newest
+      # successful build from main, so testers always have the current package.
+      - name: Publish latest-build pre-release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $dir = "CEMU-XBOX-x64"
+          $zip = "$dir.zip"
+          New-Item -ItemType Directory -Force -Path "$dir\Licencias" | Out-Null
+          Copy-Item -Recurse -Force "AppPackages\*" "$dir\"
+          Copy-Item -Force "Cemu\LICENSE.txt" "$dir\Licencias\CEMU-MPL-2.0.txt"
+          Copy-Item -Force "Cemu-UWP-Host\LICENSE" "$dir\Licencias\Cemu-UWP-Host-Apache-2.0.txt"
+          Compress-Archive -Path $dir -DestinationPath $zip -Force
+          $sha = "${{ github.sha }}".Substring(0, 7)
+          $notes = "Compilacion automatica del commit $sha de main. Se reemplaza en cada cambio. Para la version estable, usa la release v0.1.0."
+          gh release delete latest-build --repo "${{ github.repository }}" --cleanup-tag --yes 2>$null
+          gh release create latest-build $zip --repo "${{ github.repository }}" --target "${{ github.sha }}" --prerelease --title "Ultima compilacion ($sha)" --notes $notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
