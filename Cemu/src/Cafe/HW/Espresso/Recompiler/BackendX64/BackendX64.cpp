@@ -1319,6 +1319,21 @@ uint8* PPCRecompilerX86_allocateExecutableMemory(sint32 size)
 		codeMemoryBlockSize = std::max(1024*1024*4, size+1024); // 4MB (or more if the function is larger than 4MB)
 		codeMemoryBlockIndex = 0;
 		codeMemoryBlock = (uint8*)MemMapper::AllocateMemory(nullptr, codeMemoryBlockSize, MemMapper::PAGE_PERMISSION::P_RWX);
+		if (!codeMemoryBlock)
+		{
+			// Sandboxed hosts (UWP/Xbox without the codeGeneration capability) can
+			// refuse executable pages. Report it and let the caller fall back to the
+			// interpreter instead of writing through a null block.
+			static bool s_reported = false;
+			if (!s_reported)
+			{
+				s_reported = true;
+				cemuLog_log(LogType::Force, "PPCRecompiler: Unable to allocate {} bytes of executable memory. The recompiler is unavailable; enable the codeGeneration capability or use an interpreter CPU mode.", codeMemoryBlockSize);
+			}
+			codeMemoryBlockSize = 0;
+			codeMemoryBlockIndex = 0;
+			return nullptr;
+		}
 	}
 	uint8* codeMem = codeMemoryBlock + codeMemoryBlockIndex;
 	codeMemoryBlockIndex += size;
@@ -1517,6 +1532,8 @@ bool PPCRecompiler_generateX64Code(PPCRecFunction_t* PPCRecFunction, ppcImlGenCo
 	}
 	// allocate executable memory
 	uint8* executableMemory = PPCRecompilerX86_allocateExecutableMemory(x64GenContext.emitter->GetBuffer().size_bytes());
+	if (!executableMemory)
+		return false; // the function stays on the interpreter
 	size_t baseAddress = (size_t)executableMemory;
 	// fix relocs
 	for(auto& relocIt : x64GenContext.relocateOffsetTable2)
@@ -1638,6 +1655,7 @@ void PPCRecompilerX64Gen_generateEnterRecompilerCode()
 	x64Gen_ret(&x64GenContext);
 
 	uint8* executableMemory = PPCRecompilerX86_allocateExecutableMemory(x64GenContext.emitter->GetBuffer().size_bytes());
+	cemu_assert(executableMemory != nullptr);
 	// copy code to executable memory
 	memcpy(executableMemory, x64GenContext.emitter->GetBuffer().data(), x64GenContext.emitter->GetBuffer().size_bytes());
 	PPCRecompiler_enterRecompilerCode = (void ATTR_MS_ABI (*)(uint64,uint64))executableMemory;
@@ -1657,6 +1675,7 @@ void* PPCRecompilerX64Gen_generateLeaveRecompilerCode()
 	x64Gen_ret(&x64GenContext);
 
 	uint8* executableMemory = PPCRecompilerX86_allocateExecutableMemory(x64GenContext.emitter->GetBuffer().size_bytes());
+	cemu_assert(executableMemory != nullptr);
 	// copy code to executable memory
 	memcpy(executableMemory, x64GenContext.emitter->GetBuffer().data(), x64GenContext.emitter->GetBuffer().size_bytes());
 	return executableMemory;

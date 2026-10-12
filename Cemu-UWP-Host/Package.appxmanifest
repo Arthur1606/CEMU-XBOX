@@ -50,6 +50,8 @@
     <Capability Name="internetClient" />
     <uap:Capability Name="removableStorage"/>
     <Capability Name="internetClientServer"/>
+    <!-- Required for executable pages used by the PPC recompiler (JIT). -->
+    <Capability Name="codeGeneration"/>
     <DeviceCapability Name="lowLevel"/>
   </Capabilities>
 </Package>
