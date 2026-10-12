@@ -1,6 +1,6 @@
 # Cemu UWP Host
 
-Cemu UWP Host is an experimental Universal Windows Platform front end for running a modified Cemu Wii U emulator on Windows and Xbox Series S in Developer Mode. The host embeds Cemu through the `CemuEmbed` C API and presents its output through a XAML `SwapChainPanel`. Direct3D 11 remains the stable renderer; Direct3D 12 is available as an explicitly experimental in-tree backend.
+Cemu UWP Host is an experimental Universal Windows Platform front end for running a modified Cemu Wii U emulator on Windows and Xbox Series S in Developer Mode. The host embeds Cemu through the `CemuEmbed` C API and presents its output through a XAML `SwapChainPanel`. Direct3D 11 is the renderer exposed by the host. The core also contains an experimental in-tree Direct3D 12 backend, but the host currently does not offer it in Settings.
 
 The primary development and validation target is **Xbox Series S**. Desktop x64 builds are useful for diagnostics, but they do not reproduce the Xbox memory limit, D3D11On12 driver behavior, storage broker, controller projection, or performance characteristics.
 
@@ -15,7 +15,7 @@ Implemented and currently available:
 
 - Embedded Cemu lifecycle without creating the desktop wxWidgets interface.
 - Native Direct3D 11 rendering inside the UWP application.
-- Experimental internal Vulkan-to-Direct3D 12 backend. It keeps Cemu's Vulkan renderer front-end and redirects its Vulkan dispatch into an in-process D3D12 translation layer. Mesa/Dozen is design reference only and is not a runtime or build dependency.
+- Experimental internal Vulkan-to-Direct3D 12 backend in the core (not selectable from the host Settings at this time). It keeps Cemu's Vulkan renderer front-end and redirects its Vulkan dispatch into an in-process D3D12 translation layer. Mesa/Dozen is design reference only and is not a runtime or build dependency.
 - Xbox controller input, automatic player-one profile, selectable Wii U controller type, and in-game virtual mouse.
 - Installed-game library with base game, update, DLC, region, version, and Graphic Pack information.
 - Direct launch of WUD, WUX, ISO, WUA, WUHB, RPX, and ELF files.
@@ -149,6 +149,14 @@ While a game is running:
 - Mouse controls are withheld from the emulated controller while the mouse is active.
 - Pointer events are sent to Cemu's render surface so the virtual mouse can interact with supported in-game pointer and keyboard screens.
 
+### TV / GamePad screen
+
+While a game is running, press `View + right-stick click` to swap the TV and Wii U GamePad screens (desktop Cemu's `Ctrl + Tab`). While the GamePad screen is shown, virtual-mouse clicks act as GamePad touchscreen input.
+
+### Suspend and resume
+
+Suspending the app (Guide button, Home, console standby) keeps the emulator and the running title alive; the session continues on resume. The embedded runtime can only be created once per process, so it is never torn down for suspension.
+
 ### Audio
 
 - XAudio 2.8 output for UWP and Xbox.
@@ -196,7 +204,7 @@ The backend exposes a versioned `CemuEmbedSettings` structure. The Settings tab 
 - Audio backend, delay, channel modes, and volumes.
 - Skylanders portal, Disney Infinity base, and LEGO Dimensions Toy Pad emulation.
 
-Renderer selection is host-owned. Direct3D 11 is the default; Direct3D 12 is marked experimental in Settings and takes effect after restarting the application. Paths, accounts, Graphic Packs, controller profiles, and installed content use dedicated host APIs rather than the scalar settings structure. USB-device and startup-only changes also apply after restarting the application.
+Renderer selection is host-owned and fixed to Direct3D 11; older saved values are normalized to Direct3D 11. Paths, accounts, Graphic Packs, controller profiles, and installed content use dedicated host APIs rather than the scalar settings structure. USB-device and startup-only changes also apply after restarting the application.
 
 ## LEGO Dimensions Toy Pad
 

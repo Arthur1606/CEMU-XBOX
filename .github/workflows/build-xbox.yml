@@ -1,0 +1,108 @@
+name: Build CEMU XBOX
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 300
+    env:
+      VCPKG_BINARY_CACHE: ${{ github.workspace }}\.vcpkg-bincache
+      CEMU_BUILD_DIR: ${{ github.workspace }}\Cemu\build-msvc-d3d11
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Detect Visual Studio toolchain
+        id: vs
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $version = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationVersion
+          $path = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $major = [int]($version.Split('.')[0])
+          if ($major -ge 18) {
+            $generator = "Visual Studio 18 2026"; $toolset = "v145"
+          } else {
+            $generator = "Visual Studio 17 2022"; $toolset = "v143"
+          }
+          $msbuild = Join-Path $path "MSBuild\Current\Bin\MSBuild.exe"
+          Write-Host "Visual Studio $version -> $generator / $toolset"
+          "generator=$generator" >> $env:GITHUB_OUTPUT
+          "toolset=$toolset"     >> $env:GITHUB_OUTPUT
+          "msbuild=$msbuild"     >> $env:GITHUB_OUTPUT
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_BINARY_CACHE }}
+          key: vcpkg-uwp-${{ steps.vs.outputs.toolset }}-${{ hashFiles('Cemu/cmake/vcpkg-embed/vcpkg.json', 'Cemu/dependencies/vcpkg_overlay_ports*/**') }}-${{ hashFiles('.gitmodules') }}
+          restore-keys: |
+            vcpkg-uwp-${{ steps.vs.outputs.toolset }}-
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_BINARY_CACHE | Out-Null
+          & .\Cemu\dependencies\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+
+      - name: Configure embedded Cemu runtime
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;files,${{ env.VCPKG_BINARY_CACHE }},readwrite
+        run: |
+          cmake -S Cemu -B "$env:CEMU_BUILD_DIR" `
+            -G "${{ steps.vs.outputs.generator }}" -A x64 `
+            -DCEMU_UWP=ON -DENABLE_D3D11=ON -DENABLE_D3D12=ON `
+            -DSDL3_UWP_SOURCE_DIR="${{ github.workspace }}\SDL3-uwp" `
+            -DVCPKG_INSTALL_OPTIONS="--clean-after-build"
+
+      - name: Build embedded Cemu runtime (CemuBin)
+        shell: pwsh
+        run: |
+          cmake --build "$env:CEMU_BUILD_DIR" --config Release --target CemuBin --parallel
+
+      - name: Verify runtime payload
+        shell: pwsh
+        run: |
+          foreach ($f in @("Cemu\bin\Cemu_release.dll", "Cemu\bin\Cemu_release.lib", "Cemu\bin\resources\sharedFonts\CafeCn.ttf")) {
+            if (-not (Test-Path $f)) { throw "Missing runtime file: $f" }
+          }
+
+      - name: Build and package UWP host
+        shell: pwsh
+        run: |
+          & "${{ steps.vs.outputs.msbuild }}" .\Cemu-UWP-Host\Cemu-UWP-Host.vcxproj `
+            /restore /m /v:minimal `
+            /p:Configuration=Release /p:Platform=x64 `
+            /p:PlatformToolset=${{ steps.vs.outputs.toolset }} `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Always /p:AppxBundlePlatforms=x64 `
+            /p:GenerateAppInstallerFile=False `
+            /p:AppxPackageDir="${{ github.workspace }}\AppPackages\\"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload Xbox package
+        uses: actions/upload-artifact@v4
+        with:
+          name: CEMU-XBOX-x64
+          path: AppPackages/**
+          if-no-files-found: error
+
+      - name: Upload runtime symbols
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CEMU-XBOX-runtime-pdb
+          path: Cemu/bin/Cemu_release.pdb
+          if-no-files-found: ignore

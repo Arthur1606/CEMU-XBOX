@@ -1,0 +1,14 @@
+# Build outputs
+/Cemu/build*/
+/Cemu-UWP-Host/x64/
+/Cemu-UWP-Host/ARM64/
+/Cemu-UWP-Host/Debug/
+/Cemu-UWP-Host/Release/
+/Cemu-UWP-Host/Generated Files/
+/Cemu-UWP-Host/BundleArtifacts/
+/AppPackages/
+/Cemu-UWP-Host/AppPackages/
+/.vcpkg-bincache/
+*.user
+.vs/
+.DS_Store
