@@ -30,30 +30,6 @@ Proyecto sin ánimo de lucro, no afiliado a Nintendo, Microsoft ni al proyecto C
 | Intercambiar pantalla TV ↔ GamePad | `Vista + R3` |
 | Mostrar/ocultar opciones | `Vista + Menú` |
 
-## Compilar desde el código
-
-### Opción A: GitHub Actions (sin Windows)
-Cada `push` a `main` lanza el workflow [**Build CEMU XBOX**](.github/workflows/build-xbox.yml). Al terminar, el artefacto `CEMU-XBOX-x64` queda disponible en la pestaña *Actions*. La primera ejecución tarda bastante porque vcpkg compila las dependencias; las siguientes usan caché.
-
-### Opción B: PC con Windows
-Requisitos: Visual Studio 2026 (o 2022) con C++ de escritorio y de UWP, Windows SDK 10.0.26100 y CMake 3.21 o superior.
-
-> Clona el repositorio en una ruta **sin espacios** (por ejemplo, `C:\dev\CEMU-XBOX`). Algunos ports de vcpkg fallan con espacios en la ruta.
-
-```powershell
-git clone --recursive https://github.com/Arthur1606/CEMU-XBOX C:\dev\CEMU-XBOX
-cd C:\dev\CEMU-XBOX
-
-cmake -S Cemu -B Cemu\build-msvc-d3d11 -G "Visual Studio 18 2026" -A x64 `
-  -DCEMU_UWP=ON -DENABLE_D3D11=ON -DENABLE_D3D12=ON `
-  -DSDL3_UWP_SOURCE_DIR="$PWD\SDL3-uwp"
-cmake --build Cemu\build-msvc-d3d11 --config Release --target CemuBin --parallel
-
-msbuild Cemu-UWP-Host\Cemu-UWP-Host.vcxproj /restore /m /p:Configuration=Release /p:Platform=x64
-```
-
-Con Visual Studio 2022, usa `-G "Visual Studio 17 2022"` y añade `/p:PlatformToolset=v143` a msbuild.
-
 ## Qué contiene
 
 | Carpeta | Origen | Licencia |
@@ -64,7 +40,9 @@ Con Visual Studio 2022, usa `-G "Visual Studio 17 2022"` y añade `/p:PlatformTo
 
 Ambos proyectos se incorporaron con `git subtree`, así que su historial y su autoría originales se conservan. Los archivos de cada carpeta se distribuyen bajo su licencia original; si redistribuyes el código o los binarios, mantén esos avisos.
 
-## Cambios respecto a los originales
+## Mejoras aplicadas
+
+Cambios sobre los repositorios originales, en orden cronológico:
 
 - **Compilación del host:** declarado `ReplaceD3D11Surface` (usado pero no declarado) e implementado `DeviceResources::DetachSwapChainPanel` (llamado pero inexistente).
 - **Suspensión y reanudación:** al suspender la app (Guía, Inicio, reposo) ya no se destruye la instancia de Cemu. El runtime admite una sola instancia por proceso, así que antes la partida quedaba inutilizable hasta reiniciar.
@@ -75,9 +53,21 @@ Ambos proyectos se incorporaron con `git subtree`, así que su historial y su au
 - **Pantalla del GamePad:** nueva función `CemuEmbed_ToggleGamePadScreen` y atajo `Vista + R3`.
 - **CI:** [`.github/workflows/build-xbox.yml`](.github/workflows/build-xbox.yml) compila el runtime y el paquete UWP en Windows y publica el `.msixbundle`.
 
-## Pendiente
+## Hoja de ruta
 
-- **Renderer:** el backend D3D11 no cubre todo (geometry shaders arbitrarios, stream output, formatos poco comunes). El backend D3D12 está en el núcleo, pero el host todavía no lo ofrece.
-- **Varios mandos:** solo se envía el mando del jugador 1.
-- **Giroscopio, Amiibo/NFC y vibración:** sin implementar.
-- **Perfiles por juego:** se empaquetan, pero no se pueden editar desde la interfaz.
+Lo que se va a ir ajustando, con el estado de cada punto. Las casillas se marcan a medida que se completan.
+
+- [x] Compilación del host y empaquetado UWP en GitHub Actions
+- [x] Suspensión y reanudación sin perder la sesión
+- [x] JIT con respaldo a intérprete cuando no hay memoria ejecutable
+- [x] Intercambio de pantalla TV ↔ GamePad
+- [ ] Prueba en hardware (Xbox Series X|S en Modo Desarrollador) y ajustes según los resultados
+- [ ] **Renderer:** experimento con Vulkan sobre Dozen (traducción Vulkan → D3D12)
+- [ ] **Renderer:** completar el backend D3D12 y ofrecerlo en el host
+- [ ] **Renderer:** cubrir geometry shaders, stream output y formatos de textura que faltan
+- [ ] **Varios mandos:** jugadores 2 a 5 para multijugador local
+- [ ] **Giroscopio:** emulación por stick o sensor cuando esté disponible
+- [ ] **Amiibo/NFC** y **vibración**
+- [ ] **Perfiles por juego:** edición desde la interfaz
+
+Los cambios se anotan aquí y en el historial de commits de la rama `main`.
