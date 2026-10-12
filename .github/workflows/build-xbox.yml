@@ -80,7 +80,12 @@ jobs:
       - name: Build embedded Cemu runtime (CemuBin)
         shell: pwsh
         run: |
-          cmake --build "$env:CEMU_BUILD_DIR" --config Release --target CemuBin --parallel
+          cmake --build "$env:CEMU_BUILD_DIR" --config Release --target CemuBin --parallel 2>&1 | Tee-Object -FilePath cemu-build.log
+          $code = $LASTEXITCODE
+          Select-String -Path cemu-build.log -Pattern ': (fatal )?error ' |
+            Select-Object -First 25 |
+            ForEach-Object { Write-Host ("::error::" + $_.Line.Trim().Replace('%', '%25')) }
+          if ($code -ne 0) { exit $code }
 
       - name: Verify runtime payload
         shell: pwsh
@@ -92,6 +97,10 @@ jobs:
       - name: Build and package UWP host
         shell: pwsh
         run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $uwp = & $vswhere -latest -products * -requires Microsoft.VisualStudio.ComponentGroup.UWP.VC -property installationPath
+          if ($uwp) { Write-Host "::notice::UWP C++ tools are installed" } else { Write-Host "::warning::UWP C++ tools (Microsoft.VisualStudio.ComponentGroup.UWP.VC) were not found on this runner" }
+
           & "${{ steps.vs.outputs.msbuild }}" .\Cemu-UWP-Host\Cemu-UWP-Host.vcxproj `
             /restore /m /v:minimal `
             /p:Configuration=Release /p:Platform=x64 `
@@ -99,8 +108,14 @@ jobs:
             /p:UapAppxPackageBuildMode=SideloadOnly `
             /p:AppxBundle=Always /p:AppxBundlePlatforms=x64 `
             /p:GenerateAppInstallerFile=False `
-            /p:AppxPackageDir="${{ github.workspace }}\AppPackages\\"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            /p:AppxPackageDir="${{ github.workspace }}\AppPackages\\" 2>&1 | Tee-Object -FilePath host-build.log
+          $code = $LASTEXITCODE
+          # Surface compiler/MSBuild errors as annotations so they are visible
+          # without downloading the full log.
+          Select-String -Path host-build.log -Pattern ': (fatal )?error ' |
+            Select-Object -First 25 |
+            ForEach-Object { Write-Host ("::error::" + $_.Line.Trim().Replace('%', '%25')) }
+          if ($code -ne 0) { exit $code }
 
       - name: Upload Xbox package
         uses: actions/upload-artifact@v4
