@@ -405,9 +405,12 @@ if(CEMU_ARCHITECTURE MATCHES "(aarch64)|(AARCH64)|(arm64)|(ARM64)")
 endif()
 
 
-# Direct external-storage access extends the bundled reader with a
-# platform-neutral random-access callback source.  Use that implementation on
-# every platform so WUA behavior never depends on an installed library version.
+# Direct external-storage access opens WUA archives through
+# ZArchiveReader::OpenFromStream (ZArchive 0.1.3+) with a VirtualFile-backed
+# istream. Use the bundled reader on every platform so WUA behavior never
+# depends on an installed library version. Only the library is consumed, so
+# keep ZArchive's standalone-tool static flags out of CemuBin's link line.
+set(BUILD_STATIC_TOOL OFF CACHE BOOL "" FORCE)
 add_subdirectory("dependencies/ZArchive" EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)

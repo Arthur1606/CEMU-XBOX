@@ -6,21 +6,103 @@
 #include "Common/FileStream.h"
 #include "Common/VirtualFile.h"
 #include <zarchive/zarchivereader.h>
+#include <istream>
+#include <streambuf>
 #include "util/IniParser/IniParser.h"
 #include "util/crypto/crc32.h"
 #include "config/ActiveSettings.h"
 #include "util/helpers/helpers.h"
+
+namespace
+{
+	// Read-only, seekable streambuf over a VirtualFile::Stream. ZArchive only
+	// seeks to absolute offsets and reads whole ranges, so reads are forwarded
+	// directly to the (possibly brokered) source without an intermediate buffer.
+	class VirtualFileStreamBuf : public std::streambuf
+	{
+	public:
+		explicit VirtualFileStreamBuf(std::unique_ptr<VirtualFile::Stream> stream)
+			: m_stream(std::move(stream)), m_size(m_stream->GetSize()) {}
+
+	protected:
+		std::streamsize xsgetn(char* s, std::streamsize n) override
+		{
+			std::streamsize total = 0;
+			while (total < n && gptr() < egptr())
+			{
+				s[total++] = *gptr();
+				gbump(1);
+			}
+			while (total < n && m_pos < m_size)
+			{
+				const uint32 chunk = (uint32)std::min<std::streamsize>(n - total, 0x40000000);
+				const uint32 read = m_stream->Read(m_pos, s + total, chunk);
+				if (read == 0)
+					break;
+				m_pos += read;
+				total += read;
+			}
+			return total;
+		}
+
+		int_type underflow() override
+		{
+			if (gptr() < egptr())
+				return traits_type::to_int_type(*gptr());
+			if (m_pos >= m_size || m_stream->Read(m_pos, &m_peek, 1) != 1)
+				return traits_type::eof();
+			m_pos++;
+			setg(&m_peek, &m_peek, &m_peek + 1);
+			return traits_type::to_int_type(m_peek);
+		}
+
+		pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override
+		{
+			if (!(which & std::ios_base::in))
+				return pos_type(off_type(-1));
+			const sint64 current = (sint64)m_pos - (sint64)(egptr() - gptr());
+			const sint64 base = dir == std::ios_base::beg ? 0 : dir == std::ios_base::cur ? current : (sint64)m_size;
+			const sint64 target = base + (sint64)off;
+			if (target < 0 || (uint64)target > m_size)
+				return pos_type(off_type(-1));
+			setg(nullptr, nullptr, nullptr);
+			m_pos = (uint64)target;
+			return pos_type(off_type(target));
+		}
+
+		pos_type seekpos(pos_type pos, std::ios_base::openmode which) override
+		{
+			return seekoff(off_type(pos), std::ios_base::beg, which);
+		}
+
+	private:
+		std::unique_ptr<VirtualFile::Stream> m_stream;
+		uint64 m_size;
+		uint64 m_pos{};
+		char m_peek{};
+	};
+
+	class VirtualFileIStream : public std::istream
+	{
+	public:
+		explicit VirtualFileIStream(std::unique_ptr<VirtualFile::Stream> stream)
+			: std::istream(nullptr), m_buffer(std::move(stream))
+		{
+			rdbuf(&m_buffer);
+		}
+
+	private:
+		VirtualFileStreamBuf m_buffer;
+	};
+}
 
 ZArchiveReader* OpenZArchiveFile(const fs::path& path)
 {
 	auto virtualStream = VirtualFile::Open(path);
 	if (!virtualStream)
 		return ZArchiveReader::OpenFromFile(path);
-	auto sharedStream = std::shared_ptr<VirtualFile::Stream>(std::move(virtualStream));
-	return ZArchiveReader::OpenFromCallbacks(sharedStream->GetSize(),
-		[sharedStream](uint64_t offset, void* buffer, uint32_t size) {
-			return sharedStream->Read(offset, buffer, size) == size;
-		});
+	return ZArchiveReader::OpenFromStream(
+		std::make_unique<VirtualFileIStream>(std::move(virtualStream)));
 }
 
 // detect format by reading file header/footer
