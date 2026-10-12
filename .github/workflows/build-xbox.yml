@@ -42,8 +42,11 @@ jobs:
           "toolset=$toolset"     >> $env:GITHUB_OUTPUT
           "msbuild=$msbuild"     >> $env:GITHUB_OUTPUT
 
+      # Restore and save are separate so the packages built by vcpkg are kept
+      # even when a later compile step fails.
       - name: Restore vcpkg binary cache
-        uses: actions/cache@v4
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_BINARY_CACHE }}
           key: vcpkg-uwp-${{ steps.vs.outputs.toolset }}-${{ hashFiles('Cemu/cmake/vcpkg-embed/vcpkg.json', 'Cemu/dependencies/vcpkg_overlay_ports*/**') }}-${{ hashFiles('.gitmodules') }}
@@ -66,6 +69,13 @@ jobs:
             -DCEMU_UWP=ON -DENABLE_D3D11=ON -DENABLE_D3D12=ON `
             -DSDL3_UWP_SOURCE_DIR="${{ github.workspace }}\SDL3-uwp" `
             -DVCPKG_INSTALL_OPTIONS="--clean-after-build"
+
+      - name: Save vcpkg binary cache
+        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_BINARY_CACHE }}
+          key: ${{ steps.vcpkg-cache.outputs.cache-primary-key }}
 
       - name: Build embedded Cemu runtime (CemuBin)
         shell: pwsh
