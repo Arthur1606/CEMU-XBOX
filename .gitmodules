@@ -1,0 +1,31 @@
+[submodule "Cemu/dependencies/ZArchive"]
+	path = Cemu/dependencies/ZArchive
+	url = https://github.com/Exzap/ZArchive
+	shallow = true
+[submodule "Cemu/dependencies/cubeb"]
+	path = Cemu/dependencies/cubeb
+	url = https://github.com/mozilla/cubeb
+	shallow = true
+[submodule "Cemu/dependencies/vcpkg"]
+	path = Cemu/dependencies/vcpkg
+	url = https://github.com/microsoft/vcpkg
+	shallow = false
+[submodule "Cemu/dependencies/Vulkan-Headers"]
+	path = Cemu/dependencies/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers
+	shallow = true
+[submodule "Cemu/dependencies/imgui"]
+	path = Cemu/dependencies/imgui
+	url = https://github.com/ocornut/imgui
+	shallow = true
+[submodule "Cemu/dependencies/metal-cpp"]
+	path = Cemu/dependencies/metal-cpp
+	url = https://github.com/bkaradzic/metal-cpp.git
+	shallow = true
+[submodule "Cemu/dependencies/xbyak_aarch64"]
+	path = Cemu/dependencies/xbyak_aarch64
+	url = https://github.com/fujitsu/xbyak_aarch64
+[submodule "SDL3-uwp"]
+	path = SDL3-uwp
+	url = https://github.com/rodrigoandrigo/SDL3_UWP
+	shallow = true
