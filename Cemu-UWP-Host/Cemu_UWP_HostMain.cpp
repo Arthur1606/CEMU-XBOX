@@ -1,3 +1,4 @@
+// Modificado en 2026 para CEMU XBOX. Licencia: Apache-2.0 (ver LICENSE). Cambios: ver README.md.
 #include "pch.h"
 #include "Cemu_UWP_HostMain.h"
 

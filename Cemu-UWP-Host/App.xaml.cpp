@@ -1,4 +1,5 @@
-﻿//
+﻿// Modificado en 2026 para CEMU XBOX. Licencia: Apache-2.0 (ver LICENSE). Cambios: ver README.md.
+//
 // App.xaml.cpp
 // Implementação da classe App.
 //

@@ -1,3 +1,4 @@
+// Modificado en 2026 para CEMU XBOX. Licencia: Apache-2.0 (ver LICENSE). Cambios: ver README.md.
 #pragma once
 
 #include "DirectXPage.g.h"

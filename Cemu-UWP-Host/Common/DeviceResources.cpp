@@ -1,4 +1,5 @@
-﻿#include "pch.h"
+﻿// Modificado en 2026 para CEMU XBOX. Licencia: Apache-2.0 (ver LICENSE). Cambios: ver README.md.
+#include "pch.h"
 #include "DeviceResources.h"
 #include "DirectXHelper.h"
 #include <windows.ui.xaml.media.dxinterop.h>
