@@ -1,0 +1,10 @@
+add_library(CemuGui INTERFACE)
+target_include_directories(CemuGui INTERFACE "interface")
+
+if(ENABLE_WXWIDGETS)
+    add_subdirectory(wxgui)
+    target_link_libraries(CemuGui INTERFACE CemuWxGui)
+elseif(ENABLE_EMBEDDED_WINDOW_SYSTEM)
+    add_subdirectory(embedded)
+    target_link_libraries(CemuGui INTERFACE CemuEmbeddedGui)
+endif()
