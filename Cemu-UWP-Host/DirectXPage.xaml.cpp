@@ -9,6 +9,7 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <thread>
 #include <tuple>
 
 using namespace Cemu_UWP_Host;
@@ -473,9 +474,30 @@ struct __declspec(uuid("45D64A29-A63E-4CB6-B498-5781D298CB4F")) ICoreWindowInter
 	virtual HRESULT STDMETHODCALLTYPE put_MessageHandled(boolean value) = 0;
 };
 
+// Writes the memory budget Windows gives this app and the visible CPU count to
+// the errors panel, so App and Game types can be compared on the console
+// without a game installed.
+void DirectXPage::LogSystemDiagnostics()
+{
+	try
+	{
+		const auto toMb = [](unsigned long long bytes) { return bytes / (1024ull * 1024ull); };
+		std::ostringstream text;
+		text << "Diagnostico: limite de memoria " << toMb(Windows::System::MemoryManager::AppMemoryUsageLimit)
+			<< " MB, en uso " << toMb(Windows::System::MemoryManager::AppMemoryUsage)
+			<< " MB, nucleos visibles " << std::thread::hardware_concurrency();
+		AppendError(text.str());
+	}
+	catch (Platform::Exception^)
+	{
+		AppendError("Diagnostico: no se pudo leer el presupuesto de memoria de la app.");
+	}
+}
+
 DirectXPage::DirectXPage()
 {
 	InitializeComponent();
+	LogSystemDiagnostics();
 	// Registering WGI events on the XAML thread. The host mirrors a plain
 	// controller snapshot into Cemu, so the DLL never has to use a WGI object
 	// from SDL's worker apartment on Xbox.

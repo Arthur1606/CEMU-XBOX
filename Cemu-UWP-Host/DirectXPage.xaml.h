@@ -31,6 +31,7 @@ namespace Cemu_UWP_Host
 
 	private:
 		void InitializeEmulator(float width, float height);
+		void LogSystemDiagnostics();
 		void UpdateEmulatorSurfaceSize(float width, float height);
 		void OnRendering(Platform::Object^ sender, Platform::Object^ args);
 		void OnGamepadAdded(Platform::Object^ sender, Windows::Gaming::Input::Gamepad^ gamepad);
